@@ -8,7 +8,8 @@ const DEFAULT_USERNAME = 'ryepuri';
 const DEFAULT_PASSWORD = '123456789';
 let currentUserEmail = null;
 let forgotPasswordType = null;
-let lastEnquiryNumber = 1600;
+let lastEnquiryNumber = parseInt(localStorage.getItem('lastEnquiryNumber')) || 1600;
+let currentUserAccess = null;
 
 // Clear previous enquiry data to start fresh
 enquiryData = [];
@@ -95,14 +96,6 @@ function togglePassword(fieldId) {
     }
 }
 
-function toggleCheckbox(checkboxId) {
-    const checkboxElement = document.getElementById(checkboxId);
-    const checkboxLabel = checkboxElement?.parentElement;
-    const checkmarkIcon = checkboxLabel?.querySelector('.checkmark');
-    if (!checkboxElement || !checkmarkIcon) return;
-    checkmarkIcon.style.display = checkboxElement.checked ? 'inline-block' : 'none';
-}
-
 function generateEnquiryId() {
     const enquiryNumber = lastEnquiryNumber;
     localStorage.setItem('lastEnquiryNumber', lastEnquiryNumber);
@@ -147,6 +140,19 @@ function populateEnquiryIds() {
             optionElement.textContent = id;
             studentEnquirySelect.appendChild(optionElement);
         });
+    }
+
+    // If user has access to multiple forms, use the same KPH ID
+    if (currentUserAccess && Object.values(currentUserAccess).filter(Boolean).length > 1) {
+        const enquiryIdField = document.getElementById('enquiryId');
+        if (enquiryIdField) {
+            const lastUsedId = enquiryData.length > 0 ? enquiryData[enquiryData.length - 1]['ENQUIRY ID'] : null;
+            if (lastUsedId) {
+                enquiryIdField.value = lastUsedId;
+            } else {
+                enquiryIdField.value = currentEnquiryId;
+            }
+        }
     }
 }
 
@@ -301,7 +307,14 @@ function showEnquiryForm() {
         if (sectionElement) sectionElement.style.display = id === 'enquiryForm' ? 'block' : 'none';
     });
     const enquiryIdField = document.getElementById('enquiryId');
-    if (enquiryIdField) enquiryIdField.value = generateEnquiryId();
+    if (enquiryIdField) {
+        const lastUsedId = enquiryData.length > 0 ? enquiryData[enquiryData.length - 1]['ENQUIRY ID'] : null;
+        if (lastUsedId && Object.values(currentUserAccess).filter(Boolean).length > 1) {
+            enquiryIdField.value = lastUsedId;
+        } else {
+            enquiryIdField.value = generateEnquiryId();
+        }
+    }
     setEnquiryFormDate();
 }
 
@@ -347,6 +360,17 @@ function generateEmail() {
     }
 }
 
+function setUserAccess() {
+    const accessRadios = document.getElementsByName('access');
+    currentUserAccess = { enquiry: false, demo: false, student: false };
+    for (let radio of accessRadios) {
+        if (radio.checked) {
+            currentUserAccess[radio.value] = true;
+            break;
+        }
+    }
+}
+
 function firstLogin() {
     const emailInput = document.getElementById('email')?.value?.trim();
     const passwordInput = document.getElementById('password')?.value;
@@ -358,6 +382,7 @@ function firstLogin() {
 
     if (users[emailInput] && users[emailInput].password === passwordInput) {
         currentUserEmail = emailInput;
+        currentUserAccess = users[emailInput].access;
         if (isFirstLogin[emailInput]) {
             showChangePassword();
         } else {
@@ -393,9 +418,6 @@ function createAccount() {
     const educationInput = document.getElementById('education')?.value;
     const maritalStatusInput = document.getElementById('maritalStatus')?.value;
     const newPasswordInput = document.getElementById('newPassword')?.value;
-    const enquiryAccessCheckbox = document.getElementById('enquiryAccess')?.checked;
-    const demoAccessCheckbox = document.getElementById('demoAccess')?.checked;
-    const studentAccessCheckbox = document.getElementById('studentAccess')?.checked;
 
     if (!firstNameInput || !lastNameInput || !dobInput || !genderInput || !emailInput || !educationInput || !maritalStatusInput || !newPasswordInput) {
         alert('Please fill out all fields.');
@@ -412,8 +434,8 @@ function createAccount() {
         return;
     }
 
-    if (!enquiryAccessCheckbox && !demoAccessCheckbox && !studentAccessCheckbox) {
-        alert('Please select at least one access permission.');
+    if (!currentUserAccess || Object.values(currentUserAccess).every(val => !val)) {
+        alert('Please select an access permission.');
         return;
     }
 
@@ -427,14 +449,14 @@ function createAccount() {
         email: emailInput,
         education: educationInput,
         maritalStatus: maritalStatusInput,
-        access: { enquiry: enquiryAccessCheckbox, demo: demoAccessCheckbox, student: studentAccessCheckbox }
+        access: currentUserAccess
     };
 
     if (!isExistingUser) {
         isFirstLogin[emailInput] = true;
     }
 
-    const accessPermissions = `${enquiryAccessCheckbox ? 'Enquiry, ' : ''}${demoAccessCheckbox ? 'Demo, ' : ''}${studentAccessCheckbox ? 'Student' : ''}`.replace(/, $/, '');
+    const accessPermissions = Object.keys(currentUserAccess).filter(key => currentUserAccess[key]).join(', ');
     const accountRecord = {
         'FIRST NAME': firstNameInput,
         'LAST NAME': lastNameInput,
@@ -473,14 +495,11 @@ function createAccount() {
             const selectElement = document.getElementById(id);
             if (selectElement) selectElement.value = '';
         });
-        const checkboxes = ['enquiryAccess', 'demoAccess', 'studentAccess'];
-        checkboxes.forEach(id => {
-            const checkbox = document.getElementById(id);
-            if (checkbox) {
-                checkbox.checked = false;
-                toggleCheckbox(id);
-            }
-        });
+        const radios = document.getElementsByName('access');
+        for (let radio of radios) {
+            radio.checked = false;
+        }
+        currentUserAccess = null;
     }
 }
 
@@ -617,8 +636,12 @@ function submitForm(formType) {
             'COMMENT': commentValue
         };
         enquiryData.push(enquiryRecord);
-        lastEnquiryNumber++;
-        localStorage.setItem('lastEnquiryNumber', lastEnquiryNumber);
+
+        // Only increment if user has access to only one form
+        if (Object.values(currentUserAccess).filter(Boolean).length === 1) {
+            lastEnquiryNumber++;
+            localStorage.setItem('lastEnquiryNumber', lastEnquiryNumber);
+        }
 
         const enquiryHeadersList = [
             'ENQUIRY ID', 'DATE', 'FULL NAME', 'COUNTRY CODE', 'PHONE NUMBER', 'EMAIL ID',
@@ -685,6 +708,12 @@ function submitForm(formType) {
             'ENROLL STATUS': enrollStatusValue
         };
         demoData.push(demoRecord);
+
+        // Only increment if user has access to only one form
+        if (Object.values(currentUserAccess).filter(Boolean).length === 1) {
+            lastEnquiryNumber++;
+            localStorage.setItem('lastEnquiryNumber', lastEnquiryNumber);
+        }
 
         const demoHeadersList = [
             'ENQUIRY ID', 'FULL NAME', 'COUNTRY CODE', 'PHONE NUMBER', 'EMAIL ID',
@@ -758,6 +787,12 @@ function submitForm(formType) {
         };
         studentData.push(studentRecord);
 
+        // Only increment if user has access to only one form
+        if (Object.values(currentUserAccess).filter(Boolean).length === 1) {
+            lastEnquiryNumber++;
+            localStorage.setItem('lastEnquiryNumber', lastEnquiryNumber);
+        }
+
         const studentHeadersList = [
             'ENQUIRY ID', 'FULL NAME', 'COUNTRY CODE', 'PHONE NUMBER', 'EMAIL ID',
             'SUBJECT', 'TOTAL FEE', 'PAID AMOUNT', 'PENDING AMOUNT', 'MODE OF PAYMENT',
@@ -780,14 +815,3 @@ function submitForm(formType) {
         goBack();
     }
 }
-
-// Initialize form events
-document.addEventListener('DOMContentLoaded', () => {
-    const checkboxElements = document.querySelectorAll('.checkbox-label input');
-    if (checkboxElements.length > 0) {
-        checkboxElements.forEach(checkbox => {
-            checkbox.addEventListener('change', () => toggleCheckbox(checkbox.id));
-            toggleCheckbox(checkbox.id);
-        });
-    }
-});
