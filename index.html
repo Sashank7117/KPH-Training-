@@ -189,26 +189,17 @@
                 <div class="form-group centered">
                     <label>ACCESS:</label>
                     <div class="input-container access-container">
-                        <div class="checkbox-wrapper">
-                            <label class="checkbox-label">
-                                <input type="checkbox" id="enquiryAccess" onchange="toggleCheckbox('enquiryAccess')">
-                                Enquiry Form
-                                <span class="checkmark">✔</span>
-                            </label>
+                        <div class="access-option">
+                            <label>Enquiry Form</label>
+                            <input type="radio" name="access" value="enquiry" onchange="setUserAccess()">
                         </div>
-                        <div class="checkbox-wrapper">
-                            <label class="checkbox-label">
-                                <input type="checkbox" id="demoAccess" onchange="toggleCheckbox('demoAccess')">
-                                Demo Form
-                                <span class="checkmark">✔</span>
-                            </label>
+                        <div class="access-option">
+                            <label>Demo Form</label>
+                            <input type="radio" name="access" value="demo" onchange="setUserAccess()">
                         </div>
-                        <div class="checkbox-wrapper">
-                            <label class="checkbox-label">
-                                <input type="checkbox" id="studentAccess" onchange="toggleCheckbox('studentAccess')">
-                                Student Information Form
-                                <span class="checkmark">✔</span>
-                            </label>
+                        <div class="access-option">
+                            <label>Student Information Form</label>
+                            <input type="radio" name="access" value="student" onchange="setUserAccess()">
                         </div>
                     </div>
                 </div>
@@ -266,7 +257,9 @@
             <div class="logo-container">
                 <img src="KPH.jpg" alt="KPH Trainings Logo" class="logo">
             </div>
-            <div class="button-container" id="formButtons"></div>
+            <div class="form-selection-box">
+                <div class="button-container" id="formButtons"></div>
+            </div>
             <div class="address-section">
                 Address: Flat No. 315, 3rd Floor, Annapurna Block, Aditya Enclave, Ameerpet, Hyderabad - 500038.
             </div>
